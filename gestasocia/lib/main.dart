@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
+
 import 'views/auth/login_page.dart';
+import 'views/dashboard/dashboard_page.dart';
 import 'config/firebase_config.dart';
+import 'controllers/auth_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicializar Firebase con la configuración segura
+
+  // Inicializar Firebase
   await Firebase.initializeApp(
     options: FirebaseConfig.webOptions,
   );
-  
+
+  Get.put(AuthController());
+
   runApp(MyApp());
 }
 
@@ -28,8 +33,13 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: LoginPage(),
       debugShowCheckedModeBanner: false,
+
+      initialRoute: '/login',
+      getPages: [
+        GetPage(name: '/login', page: () => LoginPage()),
+        GetPage(name: '/dashboard', page: () => DashboardPage()),
+      ],
     );
   }
 }

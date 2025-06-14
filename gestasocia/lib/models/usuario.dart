@@ -1,15 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Usuario {
-  final String? id;
-  final String nombre;
-  final String apellido;
-  final String email;
-  final String telefono;
-  final String rut;
-  final String departamento;
-  final DateTime fechaCreacion;
-  final bool isActive;
+  String? id;
+  String nombre;
+  String apellido;
+  String email;
+  String telefono;
+  String rut;
+  DateTime fechaCreacion;
+  bool isActive;
 
   Usuario({
     this.id,
@@ -18,12 +16,63 @@ class Usuario {
     required this.email,
     required this.telefono,
     required this.rut,
-    required this.departamento,
     required this.fechaCreacion,
     this.isActive = true,
   });
 
-  // Convertir Usuario a Map para guardar en Firebase
+  // Getters útiles
+  String get nombreCompleto => '$nombre $apellido';
+  
+  String get rutFormateado {
+    if (rut.length < 2) return rut;
+    String cuerpo = rut.substring(0, rut.length - 1);
+    String dv = rut.substring(rut.length - 1);
+    
+    // Formatear cuerpo con puntos
+    String cuerpoFormateado = '';
+    for (int i = cuerpo.length - 1; i >= 0; i--) {
+      if ((cuerpo.length - i) % 3 == 1 && i != cuerpo.length - 1) {
+        cuerpoFormateado = '.' + cuerpoFormateado;
+      }
+      cuerpoFormateado = cuerpo[i] + cuerpoFormateado;
+    }
+    
+    return '$cuerpoFormateado-$dv';
+  }
+
+  // Validación de RUT chileno
+  static bool validarRUT(String rut) {
+    try {
+      // Limpiar RUT (quitar puntos y guión)
+      String rutLimpio = rut.replaceAll(RegExp(r'[^0-9kK]'), '');
+      
+      if (rutLimpio.length < 2) return false;
+      
+      String cuerpo = rutLimpio.substring(0, rutLimpio.length - 1);
+      String dv = rutLimpio.substring(rutLimpio.length - 1).toUpperCase();
+      
+      // Validar que el cuerpo sean solo números
+      if (!RegExp(r'^[0-9]+$').hasMatch(cuerpo)) return false;
+      
+      // Calcular dígito verificador
+      int suma = 0;
+      int multiplicador = 2;
+      
+      for (int i = cuerpo.length - 1; i >= 0; i--) {
+        suma += int.parse(cuerpo[i]) * multiplicador;
+        multiplicador = multiplicador == 7 ? 2 : multiplicador + 1;
+      }
+      
+      int resto = suma % 11;
+      String dvCalculado = resto == 0 ? '0' : resto == 1 ? 'K' : (11 - resto).toString();
+      
+      return dv == dvCalculado;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Convertir a Map para Firestore
   Map<String, dynamic> toMap() {
     return {
       'nombre': nombre,
@@ -31,13 +80,12 @@ class Usuario {
       'email': email,
       'telefono': telefono,
       'rut': rut,
-      'departamento': departamento,
-      'fechaCreacion': Timestamp.fromDate(fechaCreacion),
+      'fechaCreacion': fechaCreacion,
       'isActive': isActive,
     };
   }
 
-  // Crear Usuario desde Map de Firebase
+  // Crear desde Map de Firestore
   factory Usuario.fromMap(Map<String, dynamic> map, String id) {
     return Usuario(
       id: id,
@@ -46,35 +94,65 @@ class Usuario {
       email: map['email'] ?? '',
       telefono: map['telefono'] ?? '',
       rut: map['rut'] ?? '',
-      departamento: map['departamento'] ?? '',
-      fechaCreacion: (map['fechaCreacion'] as Timestamp).toDate(),
+      fechaCreacion: _parseDateTime(map['fechaCreacion']),
       isActive: map['isActive'] ?? true,
     );
   }
 
-  // Obtener nombre completo
-  String get nombreCompleto => '$nombre $apellido';
-
-  // Método para validar RUT chileno
-  static bool validarRUT(String rut) {
-    rut = rut.replaceAll('.', '').replaceAll('-', '').toLowerCase();
+  // Helper para manejar diferentes tipos de fecha
+  static DateTime _parseDateTime(dynamic fecha) {
+    if (fecha == null) return DateTime.now();
     
-    if (rut.length < 8 || rut.length > 9) return false;
-    
-    String numero = rut.substring(0, rut.length - 1);
-    String dv = rut.substring(rut.length - 1);
-    
-    int suma = 0;
-    int multiplicador = 2;
-    
-    for (int i = numero.length - 1; i >= 0; i--) {
-      suma += int.parse(numero[i]) * multiplicador;
-      multiplicador = multiplicador == 7 ? 2 : multiplicador + 1;
+    if (fecha is DateTime) {
+      return fecha;
+    } else if (fecha is String) {
+      try {
+        return DateTime.parse(fecha);
+      } catch (e) {
+        return DateTime.now();
+      }
+    } else if (fecha is Timestamp) {
+      // Para Timestamp de Firestore
+      return fecha.toDate();
+    } else {
+      return DateTime.now();
     }
-    
-    int resto = suma % 11;
-    String dvCalculado = resto == 0 ? '0' : resto == 1 ? 'k' : (11 - resto).toString();
-    
-    return dv == dvCalculado;
   }
+
+  // Crear copia con cambios
+  Usuario copyWith({
+    String? id,
+    String? nombre,
+    String? apellido,
+    String? email,
+    String? telefono,
+    String? rut,
+    DateTime? fechaCreacion,
+    bool? isActive,
+  }) {
+    return Usuario(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      apellido: apellido ?? this.apellido,
+      email: email ?? this.email,
+      telefono: telefono ?? this.telefono,
+      rut: rut ?? this.rut,
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'Usuario{id: $id, nombreCompleto: $nombreCompleto, email: $email, rut: $rutFormateado}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Usuario && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -25,10 +25,16 @@ class AuthController extends GetxController {
   void _handleAuthChanged(User? user) async {
     print('=== CAMBIO DE ESTADO AUTH ===');
     print('Usuario: ${user?.email ?? "null"}');
-    
+
     if (user != null) {
       // Usuario logueado - cargar sus datos
       await _loadUserData(user.uid);
+
+      // Navegar al dashboard si los datos se cargan correctamente
+      if (currentUser.value != null) {
+        print('=== NAVEGANDO A DASHBOARD ===');
+        Get.offAllNamed('/dashboard');
+      }
     } else {
       // Usuario deslogueado - limpiar datos
       currentUser.value = null;
@@ -50,7 +56,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // Registro de usuario
+  // Registro de usuario (SIN departamento)
   Future<bool> register({
     required String email,
     required String password,
@@ -58,7 +64,6 @@ class AuthController extends GetxController {
     required String apellido,
     required String telefono,
     required String rut,
-    required String departamento,
   }) async {
     try {
       print('=== INICIANDO PROCESO DE REGISTRO ===');
@@ -83,7 +88,7 @@ class AuthController extends GetxController {
         password: password,
       );
 
-      // Paso 2: Crear objeto Usuario
+      // Paso 2: Crear objeto Usuario (SIN departamento)
       print('=== PASO 2: CREANDO OBJETO USUARIO ===');
       Usuario nuevoUsuario = Usuario(
         nombre: nombre,
@@ -91,7 +96,6 @@ class AuthController extends GetxController {
         email: email,
         telefono: telefono,
         rut: rut,
-        departamento: departamento,
         fechaCreacion: DateTime.now(),
       );
 
